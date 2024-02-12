@@ -135,6 +135,31 @@ export class TestService {
 }
 ```
 
+### Closing the underlying MQTT connection
+
+In some cases it's desirable to explicitly close the underlying MQTT connection on application shutdown. This allows the
+client to ack in-flight messages and may be useful to fix some integration test issues.
+
+In order to close the connection, inject the underlying mqtt client with the `MQTT_CLIENT_INSTANCE` token. Use the
+`onModuleDestroy` lifecycle event to call the `end` method on the mqtt client instance as shown below.
+
+```typescript
+
+@Injectable()
+export class AppService implements OnModuleDestroy {
+  constructor(
+    @Inject(MQTT_CLIENT_INSTANCE) private readonly client: Client,
+  ) {}
+
+  onModuleDestroy(): Promise<void> {
+    // Convert the connection closed callback to a promise
+    return util.promisify(this.mqttClient.end)();
+  }
+}
+```
+
+Depending on use-case you might also need to enable the [application shutdown hooks](https://docs.nestjs.com/fundamentals/lifecycle-events#application-shutdown).
+
 ## Emqtt Compatible
 
 nest-mqtt support emq shared subscription
