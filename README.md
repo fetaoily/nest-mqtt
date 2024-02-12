@@ -152,8 +152,7 @@ export class AppService implements OnModuleDestroy {
   ) {}
 
   onModuleDestroy(): Promise<void> {
-    // Convert the connection closed callback to a promise
-    return util.promisify(this.mqttClient.end)();
+    return this.mqttClient.endAsync();
   }
 }
 ```
