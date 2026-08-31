@@ -5,11 +5,11 @@ import { MqttExplorer } from './mqtt.explorer';
 import { DiscoveryModule } from '@nestjs/core';
 import { createLoggerProvider, createOptionProviders } from './options.provider';
 import { MqttModuleAsyncOptions, MqttModuleOptions } from './mqtt.interface';
-import { MQTT_OPTION_PROVIDER } from './mqtt.constants';
+import { MQTT_CLIENT_INSTANCE, MQTT_OPTION_PROVIDER } from './mqtt.constants';
 
 @Module({
   imports: [DiscoveryModule],
-  exports: [MqttService],
+  exports: [MqttService, MQTT_CLIENT_INSTANCE],
 })
 export class MqttModule {
   public static forRootAsync(options: MqttModuleAsyncOptions): DynamicModule {
