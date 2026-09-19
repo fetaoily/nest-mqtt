@@ -7,7 +7,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "repository": {
-    "url": "https://github.com/fetaoily/nest-mqtt"
+    "url": "git+https://github.com/fetaoily/nest-mqtt.git"
   },
   "keywords": [
     "nest-mqtt",
@@ -18,6 +18,7 @@
   ],
   "files": [
     "dist",
+    "!dist/**/*.tsbuildinfo",
     "package.json",
     "README.md"
   ],
@@ -26,6 +27,7 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "lint": "tslint -p tsconfig.json -c tslint.json",
     "login": "npm login --registry=https://registry.npmjs.org",
+    "prepublishOnly": "npm run build",
     "release": "node scripts/publish.mjs"
   },
   "peerDependencies": {
