@@ -1,6 +1,7 @@
 node_modules
 .idea
 dist
+coverage
 yarn.lock
 pnpm-lock.yaml
 *.tsbuildinfo
