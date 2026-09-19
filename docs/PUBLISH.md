@@ -37,6 +37,18 @@ for 2FA. Consequences:
 - After a successful verification, npm skips the 2FA prompt for ~5 minutes for
   the same IP + token, so consecutive publishes in that window need no prompt.
 
+ ## Auth token expiry (E404 on publish)
+
+npm misleadingly fails the publish PUT with `E404 ... is not in this registry`
+when the stored auth token has expired or been revoked (instead of E401). The
+release script pre-flights `npm whoami` to catch this before building, but if
+you hit it directly, log in again (browser flow, works with the WebAuthn
+security key):
+
+```powershell
+npm.cmd login --registry=https://registry.npmjs.org --auth-type=web
+```
+
 ## PowerShell execution policy
 
 The default `Restricted` policy blocks `npm.ps1` (nvm4w installs npm as a

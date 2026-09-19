@@ -111,6 +111,21 @@ async function main() {
     return
   }
 
+  // Fail fast on a dead auth token: an expired token makes the publish PUT
+  // fail with a misleading E404 instead of E401, after the whole flow ran.
+  console.log('Checking npm login...')
+  const who = await viewOrNull(['whoami', `--registry=${REGISTRY}`])
+  if (!who) {
+    console.error(
+      'You are not authenticated against ' + REGISTRY + '.\n' +
+        'Run:  npm.cmd login --registry=https://registry.npmjs.org --auth-type=web\n' +
+        'then retry this script.'
+    )
+    process.exitCode = 1
+    return
+  }
+  console.log(`Logged in as: ${who}`)
+
   rawPackageJson = await readFile(pkgPath, 'utf8')
   const pkg = JSON.parse(rawPackageJson)
   console.log(`Package: ${pkg.name}  current version: ${pkg.version}`)
