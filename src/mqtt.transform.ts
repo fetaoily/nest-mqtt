@@ -8,7 +8,7 @@ export const TextTransform: MqttMessageTransformer = payload => {
   return payload.toString('utf-8');
 };
 
-export function getTransform(transform: 'json' | 'text' | MqttMessageTransformer) {
+export function getTransform(transform?: 'json' | 'text' | MqttMessageTransformer) {
   if (typeof transform === 'function') {
     return transform;
   } else {

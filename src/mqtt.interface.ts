@@ -1,7 +1,6 @@
-import { IClientOptions, Packet } from 'mqtt';
+import { IClientOptions, IClientSubscribeOptions, IClientSubscribeProperties, Packet } from 'mqtt';
 import { LoggerService, Type } from '@nestjs/common';
 import { ModuleMetadata } from '@nestjs/common/interfaces';
-import { IClientSubscribeOptions, IClientSubscribeProperties } from 'mqtt/src/lib/client';
 
 export type MqttMessageTransformer = (payload: Buffer) => any;
 

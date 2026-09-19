@@ -1,4 +1,4 @@
-import { Provider, Logger } from '@nestjs/common';
+import { Logger, Provider } from '@nestjs/common';
 import { connect } from 'mqtt';
 import { MqttModuleOptions } from './mqtt.interface';
 import { MQTT_CLIENT_INSTANCE, MQTT_OPTION_PROVIDER, MQTT_LOGGER_PROVIDER } from './mqtt.constants';

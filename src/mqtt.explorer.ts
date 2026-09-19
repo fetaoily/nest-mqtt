@@ -80,8 +80,13 @@ export class MqttExplorer implements OnModuleInit {
   }
 
   explore() {
-    const providers: InstanceWrapper[] = this.discoveryService.getProviders();
-    providers.forEach((wrapper: InstanceWrapper) => {
+    // scan providers AND controllers: Nest keeps controllers in their own map,
+    // so a @Subscribe method on a @Controller() class is invisible to getProviders()
+    const wrappers: InstanceWrapper[] = [
+      ...this.discoveryService.getProviders(),
+      ...this.discoveryService.getControllers(),
+    ];
+    wrappers.forEach((wrapper: InstanceWrapper) => {
       const { instance } = wrapper;
       if (!instance) {
         return;
@@ -94,27 +99,33 @@ export class MqttExplorer implements OnModuleInit {
         }
       });
     });
-    this.client.on('message', (topic: string, payload: Buffer, packet: Packet) => {
+    this.client.on('message', async (topic: string, payload: Buffer, packet: Packet) => {
       const subscriber = this.getSubscriber(topic);
-      if (subscriber) {
-        const parameters = subscriber.parameters || [];
-        const scatterParameters: MqttSubscriberParameter[] = [];
-        for (const parameter of parameters) {
-          scatterParameters[parameter.index] = parameter;
+      if (!subscriber) {
+        return;
+      }
+      const parameters = subscriber.parameters || [];
+      const scatterParameters: MqttSubscriberParameter[] = [];
+      for (const parameter of parameters) {
+        scatterParameters[parameter.index] = parameter;
+      }
+      try {
+        // add a option to do something before handle message.
+        // awaited so an async beforeHandle that rejects lands in the catch
+        // below instead of surfacing as an unhandled rejection (Node >= 15).
+        if (this.options.beforeHandle) {
+          await this.options.beforeHandle(topic, payload, packet);
         }
-        try {
-          const transform = getTransform(subscriber.options.transform);
 
-          // add a option to do something before handle message.
-          if (this.options.beforeHandle) {
-            this.options.beforeHandle(topic, payload, packet);
-          }
-
+        // Promise.resolve: same for an async handler that rejects.
+        Promise.resolve(
           subscriber.handle.bind(subscriber.provider)(
             ...scatterParameters.map((parameter) => {
               switch (parameter?.type) {
                 case 'payload':
-                  return transform(payload);
+                  // a @Payload(transform) parameter takes precedence over
+                  // the topic-level transform option
+                  return getTransform(parameter.transform ?? subscriber.options.transform)(payload);
                 case 'topic':
                   return topic;
                 case 'packet':
@@ -125,10 +136,12 @@ export class MqttExplorer implements OnModuleInit {
                   return null;
               }
             }),
-          );
-        } catch (err) {
+          ),
+        ).catch((err) => {
           this.logger.error(err);
-        }
+        });
+      } catch (err) {
+        this.logger.error(err);
       }
     });
   }

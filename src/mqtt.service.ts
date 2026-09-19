@@ -1,10 +1,29 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
 import { MQTT_CLIENT_INSTANCE } from './mqtt.constants';
 import { IClientPublishOptions, IClientSubscribeOptions, ISubscriptionGrant, MqttClient, Packet } from 'mqtt';
 
 @Injectable()
-export class MqttService {
+export class MqttService implements OnApplicationShutdown {
   constructor(@Inject(MQTT_CLIENT_INSTANCE) private readonly client: MqttClient) {}
+
+  /**
+   * Close the connection on application shutdown. Nest calls this on every
+   * app.close(); enableShutdownHooks() additionally wires process signals
+   * (SIGINT/SIGTERM) to close().
+   *
+   * When connected the client is ended gracefully: mqtt.js flushes queued
+   * messages and sends a DISCONNECT packet, so the broker does not publish
+   * the Last Will for a clean shutdown. Otherwise the client is force-ended:
+   * mqtt.js never sends DISCONNECT when forced (its _cleanUp(true) path just
+   * destroys the stream).
+   */
+  public async onApplicationShutdown(): Promise<void> {
+    if (this.client.connected) {
+      await this.client.endAsync();
+    } else {
+      await this.client.endAsync(true);
+    }
+  }
 
   subscribe(topic: string | string[], opts?: IClientSubscribeOptions): Promise<ISubscriptionGrant[]> {
     return new Promise((resolve, reject) => {

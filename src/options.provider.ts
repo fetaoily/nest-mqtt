@@ -1,6 +1,10 @@
 import { MqttModuleAsyncOptions, MqttModuleOptions, MqttOptionsFactory } from './mqtt.interface';
 import { Logger, Provider } from '@nestjs/common';
-import { MQTT_CLIENT_INSTANCE, MQTT_LOGGER_PROVIDER, MQTT_OPTION_PROVIDER } from './mqtt.constants';
+import { MQTT_LOGGER_PROVIDER, MQTT_OPTION_PROVIDER } from './mqtt.constants';
+
+// single shared factory body for both factory-based option sources
+const createMqttOptions = async (optionFactory: MqttOptionsFactory) =>
+  await optionFactory.createMqttConnectOptions();
 
 export function createOptionsProvider(options: MqttModuleAsyncOptions): Provider {
   if (options.useFactory) {
@@ -14,20 +18,32 @@ export function createOptionsProvider(options: MqttModuleAsyncOptions): Provider
   if (options.useExisting) {
     return {
       provide: MQTT_OPTION_PROVIDER,
-      useFactory: async (optionsFactory: MqttOptionsFactory) => await optionsFactory.createMqttConnectOptions(),
-      inject: [options.useExisting || options.useClass],
+      useFactory: createMqttOptions,
+      inject: [options.useExisting],
     };
   }
+
+  throw new Error(
+    'MqttModule async options require one of "useFactory", "useExisting" or "useClass".',
+  );
 }
 
 export function createOptionProviders(options: MqttModuleAsyncOptions): Provider[] {
   if (options.useExisting || options.useFactory) {
     return [createOptionsProvider(options)];
   }
+  if (!options.useClass) {
+    throw new Error(
+      'MqttModule async options require one of "useFactory", "useExisting" or "useClass".',
+    );
+  }
   return [
     {
-      provide: MQTT_CLIENT_INSTANCE,
-      useFactory: async (optionFactory: MqttOptionsFactory) => await optionFactory.createMqttConnectOptions(),
+      // the options factory must land on MQTT_OPTION_PROVIDER: the client
+      // provider (createClientProvider) injects that token, and the
+      // MQTT_CLIENT_INSTANCE token is taken by createClientProvider itself.
+      provide: MQTT_OPTION_PROVIDER,
+      useFactory: createMqttOptions,
       inject: [options.useClass],
     },
     {
