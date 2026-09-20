@@ -4,6 +4,11 @@ import { IClientPublishOptions, IClientSubscribeOptions, ISubscriptionGrant, Mqt
 
 @Injectable()
 export class MqttService implements OnApplicationShutdown {
+  // Bound on the graceful close wait: mqtt.js waits for the outgoingEmpty
+  // event on the graceful path, which never fires when `connected` is
+  // stale-true on a half-open dead socket.
+  private static readonly SHUTDOWN_GRACE_MS = 5_000;
+
   constructor(@Inject(MQTT_CLIENT_INSTANCE) private readonly client: MqttClient) {}
 
   /**
@@ -13,13 +18,22 @@ export class MqttService implements OnApplicationShutdown {
    *
    * When connected the client is ended gracefully: mqtt.js flushes queued
    * messages and sends a DISCONNECT packet, so the broker does not publish
-   * the Last Will for a clean shutdown. Otherwise the client is force-ended:
-   * mqtt.js never sends DISCONNECT when forced (its _cleanUp(true) path just
+   * the Last Will for a clean shutdown. The wait is bounded: a half-open
+   * dead socket never fires outgoingEmpty, and this hook must not hang
+   * app.close() forever. (Calling endAsync(true) after the timeout would be
+   * a no-op: mqtt.js end() returns immediately once disconnecting.)
+   * Otherwise (already disconnected) the client is force-ended: mqtt.js
+   * never sends DISCONNECT when forced (its _cleanUp(true) path just
    * destroys the stream).
    */
   public async onApplicationShutdown(): Promise<void> {
     if (this.client.connected) {
-      await this.client.endAsync();
+      await Promise.race([
+        this.client.endAsync(),
+        new Promise<void>((resolve) => {
+          setTimeout(resolve, MqttService.SHUTDOWN_GRACE_MS).unref();
+        }),
+      ]);
     } else {
       await this.client.endAsync(true);
     }

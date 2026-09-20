@@ -16,6 +16,7 @@ export class MqttModule {
     return {
       module: MqttModule,
       global: options.global,
+      imports: [DiscoveryModule, ...(options.imports || [])],
       providers: [
         ...createOptionProviders(options),
         createLoggerProvider(options),

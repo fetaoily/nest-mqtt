@@ -6,6 +6,9 @@ import { MQTT_LOGGER_PROVIDER, MQTT_OPTION_PROVIDER } from './mqtt.constants';
 const createMqttOptions = async (optionFactory: MqttOptionsFactory) =>
   await optionFactory.createMqttConnectOptions();
 
+const NO_OPTIONS_SOURCE_ERROR =
+  'MqttModule async options require one of "useFactory", "useExisting" or "useClass".';
+
 export function createOptionsProvider(options: MqttModuleAsyncOptions): Provider {
   if (options.useFactory) {
     return {
@@ -23,9 +26,7 @@ export function createOptionsProvider(options: MqttModuleAsyncOptions): Provider
     };
   }
 
-  throw new Error(
-    'MqttModule async options require one of "useFactory", "useExisting" or "useClass".',
-  );
+  throw new Error(NO_OPTIONS_SOURCE_ERROR);
 }
 
 export function createOptionProviders(options: MqttModuleAsyncOptions): Provider[] {
@@ -33,9 +34,7 @@ export function createOptionProviders(options: MqttModuleAsyncOptions): Provider
     return [createOptionsProvider(options)];
   }
   if (!options.useClass) {
-    throw new Error(
-      'MqttModule async options require one of "useFactory", "useExisting" or "useClass".',
-    );
+    throw new Error(NO_OPTIONS_SOURCE_ERROR);
   }
   return [
     {

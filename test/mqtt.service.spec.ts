@@ -93,6 +93,21 @@ describe('mqtt.service', () => {
       expect(client.endAsync).toHaveBeenCalledWith();
     });
 
+    it('bounds the graceful wait so a half-open dead socket cannot hang close()', async () => {
+      jest.useFakeTimers();
+      try {
+        client.connected = true;
+        // never-settling endAsync: outgoingEmpty never fires on a dead socket
+        client.endAsync.mockImplementation(() => new Promise<void>(() => {}));
+        const pending = service.onApplicationShutdown();
+        await jest.advanceTimersByTimeAsync(5000); // MqttService.SHUTDOWN_GRACE_MS (private const in src)
+        await pending; // would hang the test if the grace race did not exist
+        expect(client.endAsync).toHaveBeenCalledWith();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
     it('force-ends when already disconnected', async () => {
       client.connected = false;
       await service.onApplicationShutdown();

@@ -4,7 +4,7 @@
 // mqtt.connect is mocked with an EventEmitter client; no broker is involved.
 import 'reflect-metadata';
 import { Buffer } from 'node:buffer';
-import { Controller, INestApplicationContext } from '@nestjs/common';
+import { Controller, INestApplicationContext, Inject, Module } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { MqttModule, MqttModuleOptions, MqttOptionsFactory, Payload, Subscribe, Topic } from '../src';
 import { createMockClient } from './helpers/mock-client';
@@ -39,6 +39,24 @@ class AsyncFailureHandler {
 class TestMqttOptions implements MqttOptionsFactory {
   public createMqttConnectOptions(): MqttModuleOptions {
     return { host: 'localhost', port: 1883, connectTimeout: 100 };
+  }
+}
+
+const E2E_CONFIG = 'E2E_CONFIG';
+
+@Module({
+  providers: [{ provide: E2E_CONFIG, useValue: { host: 'from-import' } }],
+  exports: [{ provide: E2E_CONFIG, useValue: { host: 'from-import' } }],
+})
+class ConfigModule {}
+
+// a factory whose constructor dependency can only resolve if forRootAsync
+// forwards options.imports into the dynamic module
+class ImportedOptionsFactory implements MqttOptionsFactory {
+  constructor(@Inject(E2E_CONFIG) private readonly cfg: { host: string }) {}
+
+  public createMqttConnectOptions(): MqttModuleOptions {
+    return { host: this.cfg.host, port: 1883, connectTimeout: 100 };
   }
 }
 
@@ -77,6 +95,21 @@ describe('MqttModule (e2e)', () => {
   it('subscribes the discovered @Subscribe topics', () => {
     expect(client.subscribe).toHaveBeenCalledWith('e2e/text/#', undefined, expect.any(Function));
     expect(client.subscribe).toHaveBeenCalledWith('e2e/async/#', undefined, expect.any(Function));
+  });
+
+  it('forwards options.imports so useClass factories can resolve dependencies', async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [
+        ConfigModule,
+        MqttModule.forRootAsync({ imports: [ConfigModule], useClass: ImportedOptionsFactory }),
+      ],
+    }).compile();
+    const app = await moduleRef.init();
+    try {
+      expect(connectMock).toHaveBeenLastCalledWith(expect.objectContaining({ host: 'from-import' }));
+    } finally {
+      await app.close();
+    }
   });
 
   it('applies the @Payload(transform) parameter over the topic-level transform', () => {
